@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return userRole() == 'admin';
+    }
+
+    function isReceptionist() {
+      return userRole() == 'receptionist';
+    }
+
+    function isHousekeeper() {
+      return userRole() == 'housekeeper';
+    }
+
+    function isFrontDeskStaff() {
+      return isAdmin() || isReceptionist();
+    }
+
+    // ---------------------------------------------------------------
+    // Staff accounts (one doc per Firebase Auth user, keyed by uid).
+    // Only admins can provision or edit staff profiles. Any signed-in
+    // staff member can read the roster (needed to resolve roles/names
+    // across the app), but never write it.
+    // ---------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Rooms: every signed-in staff member can view inventory. Creating,
+    // deleting or editing room definitions (rates, amenities, etc.) is
+    // admin-only. Receptionists and housekeepers may still update a room
+    // document for day-to-day operational needs (housekeeping status,
+    // assignment, marking out of order during a shift) since the UI only
+    // exposes those specific actions to them.
+    // ---------------------------------------------------------------
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isFrontDeskStaff() || isHousekeeper();
+    }
+
+    // ---------------------------------------------------------------
+    // Reservations: viewable by all signed-in staff (housekeeping needs
+    // to see stay dates/guest names for context). Creating/editing is
+    // limited to admins and receptionists, who run the front desk.
+    // ---------------------------------------------------------------
+    match /reservations/{reservationId} {
+      allow read: if isSignedIn();
+      allow create, update: if isFrontDeskStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Invoices & folios: front-desk billing only.
+    // ---------------------------------------------------------------
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn();
+      allow create, update: if isFrontDeskStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Payments: recorded by front desk; immutable once written (no
+    // update), deletable only by an admin correcting a mistake.
+    // ---------------------------------------------------------------
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create: if isFrontDeskStaff();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Housekeeping tasks: visible to all staff. Dispatching/assigning new
+    // tasks is admin/receptionist; housekeepers can update the status of
+    // tasks (start, complete) but not create or delete them.
+    // ---------------------------------------------------------------
+    match /housekeepingTasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isFrontDeskStaff();
+      allow update: if isFrontDeskStaff() || isHousekeeper();
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Audit logs: append-only system trail. Any signed-in staff action
+    // may write a log entry, but entries can never be edited or deleted,
+    // and only admins can read the trail back (Settings > Audit Trail).
+    // ---------------------------------------------------------------
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Hotel-wide settings (single "general" document): readable by all
+    // staff (used for check-in time, tax rate, etc. shown throughout the
+    // app), editable by admins only.
+    // ---------------------------------------------------------------
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

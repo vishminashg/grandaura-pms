@@ -1,0 +1,176 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "Hotel room inventory item with operational and housekeeping statuses",
+      "type": "object",
+      "properties": {
+        "roomNumber": { "type": "string", "maxLength": 16 },
+        "roomType": { "type": "string", "enum": ["Single", "Double", "Twin", "Deluxe", "Suite", "Family room"] },
+        "floor": { "type": "integer" },
+        "maxOccupancy": { "type": "integer" },
+        "bedConfiguration": { "type": "string", "maxLength": 64 },
+        "baseNightlyRate": { "type": "number" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "amenities": { "type": "array" },
+        "operationalStatus": { "type": "string", "enum": ["active", "out_of_order"] },
+        "housekeepingStatus": { "type": "string", "enum": ["clean", "dirty", "in_progress", "inspected"] },
+        "assignedStaff": { "type": "string", "maxLength": 64 },
+        "lastCleanedAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["roomNumber", "roomType", "floor", "maxOccupancy", "baseNightlyRate", "operationalStatus", "housekeepingStatus"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Guest reservation record tracking stay duration, billing, room assignment and statuses",
+      "type": "object",
+      "properties": {
+        "reservationNumber": { "type": "string", "maxLength": 32 },
+        "guestName": { "type": "string", "maxLength": 128 },
+        "guestEmail": { "type": "string", "maxLength": 128 },
+        "guestPhone": { "type": "string", "maxLength": 32 },
+        "guestIdProof": { "type": "string", "maxLength": 64 },
+        "checkInDate": { "type": "string", "maxLength": 32 },
+        "checkOutDate": { "type": "string", "maxLength": 32 },
+        "adults": { "type": "integer" },
+        "children": { "type": "integer" },
+        "roomType": { "type": "string", "maxLength": 32 },
+        "assignedRoomId": { "type": "string", "maxLength": 64 },
+        "assignedRoomNumber": { "type": "string", "maxLength": 16 },
+        "numberOfRooms": { "type": "integer" },
+        "ratePerNight": { "type": "number" },
+        "numberOfNights": { "type": "integer" },
+        "discountAmount": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "balanceAmount": { "type": "number" },
+        "bookingSource": { "type": "string", "maxLength": 64 },
+        "specialRequests": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["confirmed", "checked_in", "checked_out", "cancelled", "no_show"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["reservationNumber", "guestName", "checkInDate", "checkOutDate", "roomType", "totalAmount", "status"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Folio and billing invoice for a reservation or incidentals",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 32 },
+        "reservationId": { "type": "string", "maxLength": 64 },
+        "guestName": { "type": "string", "maxLength": 128 },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "balanceAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "issued", "paid", "void"] },
+        "issueDate": { "type": "string", "maxLength": 32 },
+        "dueDate": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["invoiceNumber", "reservationId", "guestName", "totalAmount", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Financial payment transaction recorded against an invoice or folio",
+      "type": "object",
+      "properties": {
+        "invoiceId": { "type": "string", "maxLength": 64 },
+        "reservationId": { "type": "string", "maxLength": 64 },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Cash", "Credit Card", "Debit Card", "Bank Transfer", "Digital Wallet"] },
+        "transactionReference": { "type": "string", "maxLength": 64 },
+        "recordedBy": { "type": "string", "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["reservationId", "amount", "paymentMethod", "createdAt"]
+    },
+    "HousekeepingTask": {
+      "title": "HousekeepingTask",
+      "description": "Room cleaning or maintenance task assignment",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "maxLength": 64 },
+        "roomNumber": { "type": "string", "maxLength": 16 },
+        "floor": { "type": "integer" },
+        "taskType": { "type": "string", "enum": ["Daily Clean", "Checkout Clean", "Deep Clean", "Touch Up", "Inspection"] },
+        "priority": { "type": "string", "enum": ["standard", "high", "urgent"] },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed", "inspected"] },
+        "assignedTo": { "type": "string", "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "completedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["roomId", "roomNumber", "taskType", "priority", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Audit logging for hotel administrative actions",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "maxLength": 64 },
+        "entityType": { "type": "string", "maxLength": 64 },
+        "entityId": { "type": "string", "maxLength": 64 },
+        "performedBy": { "type": "string", "maxLength": 64 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "timestamp": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["action", "entityType", "performedBy", "timestamp"]
+    },
+    "HotelSettings": {
+      "title": "HotelSettings",
+      "description": "General hotel configuration parameters",
+      "type": "object",
+      "properties": {
+        "hotelName": { "type": "string", "maxLength": 128 },
+        "contactEmail": { "type": "string", "maxLength": 128 },
+        "contactPhone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 256 },
+        "checkInTime": { "type": "string", "maxLength": 16 },
+        "checkOutTime": { "type": "string", "maxLength": 16 },
+        "taxRatePercent": { "type": "number" },
+        "currencySymbol": { "type": "string", "maxLength": 8 },
+        "cancellationPolicy": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["hotelName", "taxRatePercent", "currencySymbol"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Collection of all hotel rooms and their operational/cleaning statuses"
+    },
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Collection of all guest reservations, stay details, and financial balances"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Collection of guest folios and issued invoices"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Collection of all received payments and folios"
+    },
+    "/housekeepingTasks/{taskId}": {
+      "schema": "HousekeepingTask",
+      "description": "Collection of housekeeping duties and room turnover assignments"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Collection of system audit trail logs"
+    },
+    "/settings/{settingId}": {
+      "schema": "HotelSettings",
+      "description": "Global hotel profile and property parameters"
+    }
+  }
+}
