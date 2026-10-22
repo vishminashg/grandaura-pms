@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth, canAccessTab } from '../../context/AuthContext.tsx';
 import { Plus, LogOut } from 'lucide-react';
 
 interface HeaderProps {
@@ -14,16 +14,17 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewReservation,
 }) => {
   const { currentUser, logout, can } = useAuth();
+  const role = currentUser?.role;
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', show: true },
-    { id: 'rooms', label: 'Rooms', show: true },
-    { id: 'reservations', label: 'Reservations', show: true },
-    { id: 'housekeeping', label: 'Housekeeping', show: true },
-    { id: 'billing', label: 'Billing & Folios', show: true },
-    { id: 'restaurant', label: 'Restaurant', show: can('create_restaurant_orders') || can('manage_menu') },
-    { id: 'reports', label: 'Reports', show: can('view_reports') },
-    { id: 'settings', label: 'Settings', show: true },
+    { id: 'dashboard', label: 'Dashboard', show: canAccessTab(role, 'dashboard') },
+    { id: 'rooms', label: 'Rooms', show: canAccessTab(role, 'rooms') },
+    { id: 'reservations', label: 'Reservations', show: canAccessTab(role, 'reservations') },
+    { id: 'housekeeping', label: 'Housekeeping', show: canAccessTab(role, 'housekeeping') },
+    { id: 'billing', label: 'Billing & Folios', show: canAccessTab(role, 'billing') },
+    { id: 'restaurant', label: 'Restaurant', show: canAccessTab(role, 'restaurant') },
+    { id: 'reports', label: 'Reports', show: canAccessTab(role, 'reports') },
+    { id: 'settings', label: 'Settings', show: canAccessTab(role, 'settings') },
   ].filter((item) => item.show);
 
   return (

@@ -1,6 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { StaffUser } from '../types/hotel.ts';
+import { StaffUser, UserRole } from '../types/hotel.ts';
 import { subscribeAuthState, loginWithEmail, logoutUser } from '../services/authService.ts';
+
+/**
+ * Which top-level screens each role is allowed to open at all.
+ *
+ * This is the single source of truth for screen-level access, separate from
+ * `can()` below which gates individual actions WITHIN a screen (buttons,
+ * inputs). A role that isn't listed for a tab here never sees that tab in
+ * navigation and never has it rendered, even if app state is tampered with
+ * — a housekeeper has no legitimate reason to browse guest billing/folio
+ * data or hotel financial settings, for example, so those screens are not
+ * just "read-only" for them, they are not reachable at all.
+ */
+const TAB_ACCESS: Record<string, UserRole[]> = {
+  dashboard: ['super_admin', 'admin', 'receptionist'],
+  rooms: ['super_admin', 'admin', 'receptionist'],
+  reservations: ['super_admin', 'admin', 'receptionist'],
+  housekeeping: ['super_admin', 'admin', 'receptionist', 'housekeeper'],
+  billing: ['super_admin', 'admin', 'receptionist'],
+  restaurant: ['super_admin', 'admin', 'receptionist'],
+  reports: ['super_admin', 'admin'],
+  settings: ['super_admin', 'admin'],
+};
+
+export function canAccessTab(role: UserRole | undefined | null, tab: string): boolean {
+  if (!role) return false;
+  const allowed = TAB_ACCESS[tab];
+  return allowed ? allowed.includes(role) : false;
+}
+
+export function getDefaultTabForRole(role: UserRole | undefined | null): string {
+  if (role === 'housekeeper') return 'housekeeping';
+  return 'dashboard';
+}
 
 export type PermissionAction =
   | 'manage_rooms'
