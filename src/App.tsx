@@ -238,11 +238,12 @@ function HotelPMSApp() {
               />
             )}
 
-            {activeTab === 'billing' && (
+            {activeTab === 'billing' && settings && (
               <InvoicesFolioView
                 invoices={invoices}
                 payments={payments}
                 reservations={reservations}
+                settings={settings}
                 onOpenPaymentModal={(res, inv) => {
                   setPaymentTargetRes(res);
                   setPaymentTargetInv(inv || null);
@@ -263,14 +264,16 @@ function HotelPMSApp() {
       </main>
 
       {/* Modals Container */}
-      {isNewReservationOpen && (
+      {isNewReservationOpen && settings && (
         <NewReservationModal
           rooms={rooms}
           reservations={reservations}
+          settings={settings}
           onClose={() => setIsNewReservationOpen(false)}
           onSuccess={(resId) => {
             setIsNewReservationOpen(false);
-            showToast('New guest reservation confirmed successfully.');
+            setActiveTab('reservations');
+            showToast('New guest reservation confirmed successfully. Opening Reservation Management…');
           }}
         />
       )}

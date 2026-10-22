@@ -771,7 +771,8 @@ export async function addFolioChargeItem(
   invoiceId: string,
   reservationId: string,
   item: Omit<InvoiceItem, 'id'>,
-  user: StaffUser
+  user: StaffUser,
+  taxRatePercent: number = 12
 ): Promise<void> {
   try {
     const invRef = doc(db, INVOICES_COL, invoiceId);
@@ -786,7 +787,7 @@ export async function addFolioChargeItem(
 
     const newItems = [...invData.items, newItem];
     const newSubtotal = Number(newItems.reduce((acc, curr) => acc + curr.total, 0).toFixed(2));
-    const taxRate = 0.12; // 12% default tax
+    const taxRate = taxRatePercent / 100; // configurable via Settings → Tax & Surcharge
     const newTax = Number((newSubtotal * taxRate).toFixed(2));
     const newTotal = Number((newSubtotal + newTax - (invData.discountAmount || 0)).toFixed(2));
     const newBalance = Number(Math.max(0, newTotal - invData.paidAmount).toFixed(2));

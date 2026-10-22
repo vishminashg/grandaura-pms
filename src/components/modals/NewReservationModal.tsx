@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Room, Reservation, RoomType, BookingSource, Payment } from '../../types/hotel.ts';
+import { Room, Reservation, RoomType, BookingSource, Payment, HotelSettings } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
   createReservation,
@@ -11,6 +11,7 @@ import { X, Calendar, User, Bed, DollarSign, AlertCircle, ShieldAlert } from 'lu
 interface NewReservationModalProps {
   rooms: Room[];
   reservations: Reservation[];
+  settings: HotelSettings;
   onClose: () => void;
   onSuccess: (resId: string) => void;
 }
@@ -18,6 +19,7 @@ interface NewReservationModalProps {
 export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   rooms,
   reservations,
+  settings,
   onClose,
   onSuccess,
 }) => {
@@ -62,7 +64,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   const { numberOfNights, subtotal, taxAmount, totalAmount } = useMemo(() => {
     const nights = Math.max(1, differenceInDays(new Date(checkOutDate), new Date(checkInDate)));
     const sub = Number((nights * customRate).toFixed(2));
-    const tax = Number((sub * 0.12).toFixed(2)); // 12% default tax
+    const tax = Number((sub * (settings.taxRatePercent / 100)).toFixed(2));
     const total = Number(Math.max(0, sub + tax - discountAmount).toFixed(2));
     return {
       numberOfNights: nights,
@@ -70,7 +72,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
       taxAmount: tax,
       totalAmount: total,
     };
-  }, [checkInDate, checkOutDate, customRate, discountAmount]);
+  }, [checkInDate, checkOutDate, customRate, discountAmount, settings.taxRatePercent]);
 
   // Filter available rooms for the chosen dates and type
   const availableRoomsList = useMemo(() => {
@@ -416,7 +418,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                 <span className="font-mono">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Taxes & Hotel Surcharge (12%):</span>
+                <span>Taxes & Hotel Surcharge ({settings.taxRatePercent}%):</span>
                 <span className="font-mono">${taxAmount.toFixed(2)}</span>
               </div>
               {discountAmount > 0 && (

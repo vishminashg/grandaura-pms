@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Invoice, Payment, Reservation, InvoiceItem } from '../../types/hotel.ts';
+import { Invoice, Payment, Reservation, InvoiceItem, HotelSettings } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { recordPayment, addFolioChargeItem } from '../../services/pmsService.ts';
 import { format } from 'date-fns';
@@ -21,6 +21,7 @@ interface InvoicesFolioViewProps {
   invoices: Invoice[];
   payments: Payment[];
   reservations: Reservation[];
+  settings: HotelSettings;
   onOpenPaymentModal: (res: Reservation, inv?: Invoice) => void;
 }
 
@@ -28,6 +29,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
   invoices,
   payments,
   reservations,
+  settings,
   onOpenPaymentModal,
 }) => {
   const { currentUser, can } = useAuth();
@@ -99,7 +101,8 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
           total: Number((chargeUnitPrice * chargeQuantity).toFixed(2)),
           date: format(new Date(), 'yyyy-MM-dd'),
         },
-        currentUser!
+        currentUser!,
+        settings.taxRatePercent
       );
 
       // Refresh currently selected invoice from parent state if updated
@@ -365,7 +368,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Taxes & Hotel Fees (12%)</span>
+                  <span>Taxes & Hotel Fees ({settings.taxRatePercent}%)</span>
                   <span className="font-mono tabular-nums font-medium">
                     ${selectedInvoice.taxAmount.toFixed(2)}
                   </span>
@@ -542,7 +545,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-xs flex justify-between font-medium">
                 <span>Charge Subtotal:</span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${(chargeUnitPrice * chargeQuantity).toFixed(2)} (+12% tax)
+                  ${(chargeUnitPrice * chargeQuantity).toFixed(2)} (+{settings.taxRatePercent}% tax)
                 </span>
               </div>
 
