@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Invoice, Payment, Reservation, InvoiceItem, HotelSettings } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { recordPayment, addFolioChargeItem } from '../../services/pmsService.ts';
+import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
 import { format } from 'date-fns';
 import {
   Search,
@@ -387,6 +388,11 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                     ${selectedInvoice.totalAmount.toFixed(2)}
                   </span>
                 </div>
+                <MultiCurrencyAmount
+                  amountInBase={selectedInvoice.totalAmount}
+                  baseCurrencyCode={settings.baseCurrencyCode}
+                  className="justify-end -mt-1"
+                />
                 <div className="flex justify-between text-slate-600 pt-1">
                   <span>Amount Paid / Credits</span>
                   <span className="font-mono tabular-nums text-emerald-700 font-medium">

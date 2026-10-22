@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Room, Reservation, RoomType, OperationalStatus, HousekeepingStatus } from '../../types/hotel.ts';
+import { Room, Reservation, RoomType, OperationalStatus, HousekeepingStatus, RoomRateCategory } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
   getRoomOccupancyStatus,
   updateRoomHousekeeping,
   toggleRoomOperationalStatus,
+  slugifyRoomType,
 } from '../../services/pmsService.ts';
 import { format } from 'date-fns';
 import {
@@ -30,6 +31,8 @@ import {
 interface RoomManagementViewProps {
   rooms: Room[];
   reservations: Reservation[];
+  roomRates: RoomRateCategory[];
+  currencySymbol: string;
   onOpenAddRoom: () => void;
   onOpenEditRoom: (room: Room) => void;
 }
@@ -37,11 +40,18 @@ interface RoomManagementViewProps {
 export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
   rooms,
   reservations,
+  roomRates,
+  currencySymbol,
   onOpenAddRoom,
   onOpenEditRoom,
 }) => {
   const { currentUser, can } = useAuth();
   const staffUser = currentUser!;
+
+  const rateFor = (room: Room): number => {
+    const cat = roomRates.find((r) => r.id === slugifyRoomType(room.roomType));
+    return cat?.ratePerNight ?? room.baseNightlyRate;
+  };
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -344,7 +354,7 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
                         <span aria-hidden="true">·</span>
                         <span>Floor {room.floor}</span>
                         <span aria-hidden="true">·</span>
-                        <span className="tabular-nums font-mono">${room.baseNightlyRate}/night</span>
+                        <span className="tabular-nums font-mono">{currencySymbol}{rateFor(room).toFixed(2)}/night</span>
                       </div>
                     </div>
 
@@ -486,7 +496,7 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
                         {room.bedConfiguration} (Max {room.maxOccupancy})
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
-                        ${room.baseNightlyRate.toFixed(2)}
+                        {currencySymbol}{rateFor(room).toFixed(2)}
                       </td>
                       <td className="py-3 px-4">
                         <button

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Room, RoomType, OperationalStatus, HousekeepingStatus } from '../../types/hotel.ts';
+import { Room, RoomType, OperationalStatus, HousekeepingStatus, RoomRateCategory } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { createRoom, updateRoomDetails } from '../../services/pmsService.ts';
-import { X, BedDouble, AlertCircle } from 'lucide-react';
+import { createRoom, updateRoomDetails, slugifyRoomType } from '../../services/pmsService.ts';
+import { X, BedDouble, AlertCircle, Info } from 'lucide-react';
 
 interface RoomFormModalProps {
   roomToEdit?: Room | null;
+  roomRates: RoomRateCategory[];
+  currencySymbol: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -27,6 +29,8 @@ const COMMON_AMENITIES = [
 
 export const RoomFormModal: React.FC<RoomFormModalProps> = ({
   roomToEdit,
+  roomRates,
+  currencySymbol,
   onClose,
   onSuccess,
 }) => {
@@ -39,8 +43,13 @@ export const RoomFormModal: React.FC<RoomFormModalProps> = ({
   const [floor, setFloor] = useState<number>(roomToEdit?.floor || 1);
   const [maxOccupancy, setMaxOccupancy] = useState<number>(roomToEdit?.maxOccupancy || 2);
   const [bedConfiguration, setBedConfiguration] = useState(roomToEdit?.bedConfiguration || '1 Queen Bed');
-  const [baseNightlyRate, setBaseNightlyRate] = useState<number>(roomToEdit?.baseNightlyRate || 140);
   const [description, setDescription] = useState(roomToEdit?.description || '');
+
+  // Rate is no longer entered by hand per room — it is looked up from the
+  // Room Rate Categories (managed in Settings by Super Admin/Admin) based
+  // on whichever Room Type is currently selected above.
+  const rateForSelectedType = roomRates.find((r) => r.id === slugifyRoomType(roomType));
+  const baseNightlyRate = rateForSelectedType?.ratePerNight ?? roomToEdit?.baseNightlyRate ?? 0;
   const [amenities, setAmenities] = useState<string[]>(roomToEdit?.amenities || ['High-speed Wi-Fi', 'Smart TV', 'Air Conditioning']);
   const [operationalStatus, setOperationalStatus] = useState<OperationalStatus>(roomToEdit?.operationalStatus || 'active');
   const [housekeepingStatus, setHousekeepingStatus] = useState<HousekeepingStatus>(roomToEdit?.housekeepingStatus || 'clean');
@@ -203,17 +212,17 @@ export const RoomFormModal: React.FC<RoomFormModalProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Base Nightly Rate ($) *
+                Nightly Rate (set by Room Type)
               </label>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                required
-                value={baseNightlyRate}
-                onChange={(e) => setBaseNightlyRate(parseFloat(e.target.value) || 0)}
-                className="w-full p-2 border border-slate-300 rounded-lg font-mono"
-              />
+              <div className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg font-mono text-slate-700">
+                {currencySymbol}{baseNightlyRate.toFixed(2)}
+                {!rateForSelectedType && (
+                  <span className="ml-2 text-amber-600 font-sans font-normal">(no rate set yet)</span>
+                )}
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400 flex items-center gap-1">
+                <Info className="w-3 h-3" /> Managed in Settings &rarr; Room Rates, by category.
+              </p>
             </div>
 
             <div>

@@ -25,7 +25,7 @@ export type BookingSource =
   | 'Phone / Email'
   | 'Corporate';
 
-export type UserRole = 'admin' | 'receptionist' | 'housekeeper';
+export type UserRole = 'super_admin' | 'admin' | 'receptionist' | 'housekeeper';
 
 export interface Room {
   id: string;
@@ -131,7 +131,17 @@ export interface HousekeepingTask {
 export interface AuditLog {
   id: string;
   action: string;
-  entityType: 'Room' | 'Reservation' | 'Invoice' | 'Payment' | 'Housekeeping' | 'Settings';
+  entityType:
+    | 'Room'
+    | 'Reservation'
+    | 'Invoice'
+    | 'Payment'
+    | 'Housekeeping'
+    | 'Settings'
+    | 'RoomRate'
+    | 'MenuItem'
+    | 'RestaurantOrder'
+    | 'CashierShift';
   entityId: string;
   performedBy: string;
   details: string;
@@ -148,6 +158,10 @@ export interface HotelSettings {
   checkOutTime: string;
   taxRatePercent: number;
   currencySymbol: string;
+  /** ISO 4217 code of the hotel's accounting/base currency (e.g. "LKR"). Used
+   * to fetch live conversion rates for display purposes; stored amounts are
+   * always in this currency regardless of what a guest sees on screen. */
+  baseCurrencyCode: string;
   cancellationPolicy: string;
   updatedAt: string;
 }
@@ -159,4 +173,71 @@ export interface StaffUser {
   role: UserRole;
   title: string;
   avatarUrl?: string;
+}
+
+/**
+ * One rate per room category (e.g. "Double"). Super Admins can create or
+ * remove a category's rate entry; Admins can edit the price of an existing
+ * one. Individual rooms no longer carry their own editable rate — they
+ * inherit it from here based on `roomType`.
+ */
+export interface RoomRateCategory {
+  id: string; // slugified RoomType, e.g. "double"
+  roomType: RoomType;
+  ratePerNight: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  category: 'Starters' | 'Main Course' | 'Desserts' | 'Beverages' | 'Bar' | 'Other';
+  price: number;
+  isAvailable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RestaurantOrderItem {
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  total: number;
+}
+
+export type RestaurantOrderStatus = 'posted_to_room' | 'paid_direct' | 'cancelled';
+
+export interface RestaurantOrder {
+  id: string;
+  orderNumber: string;
+  reservationId?: string;
+  reservationNumber?: string;
+  roomNumber?: string;
+  guestName: string;
+  items: RestaurantOrderItem[];
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  status: RestaurantOrderStatus;
+  paymentMethod?: Payment['paymentMethod'];
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface CashierShift {
+  id: string;
+  openedBy: string;
+  openedByName: string;
+  openedAt: string;
+  startingCash: number;
+  status: 'open' | 'closed';
+  closedBy?: string;
+  closedByName?: string;
+  closedAt?: string;
+  countedCash?: number;
+  expectedCash?: number;
+  variance?: number;
+  notes?: string;
 }

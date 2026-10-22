@@ -8,6 +8,8 @@ import { ReservationManagementView } from './components/reservations/Reservation
 import { HousekeepingView } from './components/housekeeping/HousekeepingView.tsx';
 import { InvoicesFolioView } from './components/billing/InvoicesFolioView.tsx';
 import { SettingsView } from './components/settings/SettingsView.tsx';
+import { RestaurantView } from './components/restaurant/RestaurantView.tsx';
+import { ReportsView } from './components/reports/ReportsView.tsx';
 import { NewReservationModal } from './components/modals/NewReservationModal.tsx';
 import { QuickCheckInModal } from './components/modals/QuickCheckInModal.tsx';
 import { QuickCheckOutModal } from './components/modals/QuickCheckOutModal.tsx';
@@ -22,6 +24,10 @@ import {
   subscribeHousekeepingTasks,
   subscribeAuditLogs,
   subscribeSettings,
+  subscribeRoomRates,
+  subscribeMenuItems,
+  subscribeRestaurantOrders,
+  subscribeCashierShifts,
   seedInitialHotelData,
 } from './services/pmsService.ts';
 import { subscribeStaffUsers } from './services/authService.ts';
@@ -35,6 +41,10 @@ import {
   AuditLog,
   HotelSettings,
   StaffUser,
+  RoomRateCategory,
+  MenuItem,
+  RestaurantOrder,
+  CashierShift,
 } from './types/hotel.ts';
 
 import { Loader2, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
@@ -52,6 +62,10 @@ function HotelPMSApp() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<HotelSettings | null>(null);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [roomRates, setRoomRates] = useState<RoomRateCategory[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
+  const [cashierShifts, setCashierShifts] = useState<CashierShift[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -117,6 +131,22 @@ function HotelPMSApp() {
       setStaffUsers(data);
     });
 
+    const unsubRoomRates = subscribeRoomRates((data) => {
+      setRoomRates(data);
+    });
+
+    const unsubMenuItems = subscribeMenuItems((data) => {
+      setMenuItems(data);
+    });
+
+    const unsubRestaurantOrders = subscribeRestaurantOrders((data) => {
+      setRestaurantOrders(data);
+    });
+
+    const unsubCashierShifts = subscribeCashierShifts((data) => {
+      setCashierShifts(data);
+    });
+
     return () => {
       unsubRooms();
       unsubRes();
@@ -126,6 +156,10 @@ function HotelPMSApp() {
       unsubLogs();
       unsubSettings();
       unsubStaff();
+      unsubRoomRates();
+      unsubMenuItems();
+      unsubRestaurantOrders();
+      unsubCashierShifts();
     };
   }, []);
 
@@ -192,10 +226,12 @@ function HotelPMSApp() {
               />
             )}
 
-            {activeTab === 'rooms' && (
+            {activeTab === 'rooms' && settings && (
               <RoomManagementView
                 rooms={rooms}
                 reservations={reservations}
+                roomRates={roomRates}
+                currencySymbol={settings.currencySymbol}
                 onOpenAddRoom={() => {
                   setRoomToEdit(null);
                   setIsRoomModalOpen(true);
@@ -252,11 +288,32 @@ function HotelPMSApp() {
               />
             )}
 
+            {activeTab === 'restaurant' && settings && (
+              <RestaurantView
+                menuItems={menuItems}
+                restaurantOrders={restaurantOrders}
+                cashierShifts={cashierShifts}
+                reservations={reservations}
+                settings={settings}
+              />
+            )}
+
+            {activeTab === 'reports' && settings && (
+              <ReportsView
+                reservations={reservations}
+                payments={payments}
+                rooms={rooms}
+                restaurantOrders={restaurantOrders}
+                settings={settings}
+              />
+            )}
+
             {activeTab === 'settings' && settings && (
               <SettingsView
                 settings={settings}
                 auditLogs={auditLogs}
                 staffUsers={staffUsers}
+                roomRates={roomRates}
               />
             )}
           </>
@@ -269,6 +326,7 @@ function HotelPMSApp() {
           rooms={rooms}
           reservations={reservations}
           settings={settings}
+          roomRates={roomRates}
           onClose={() => setIsNewReservationOpen(false)}
           onSuccess={(resId) => {
             setIsNewReservationOpen(false);
@@ -312,9 +370,11 @@ function HotelPMSApp() {
         />
       )}
 
-      {isRoomModalOpen && (
+      {isRoomModalOpen && settings && (
         <RoomFormModal
           roomToEdit={roomToEdit}
+          roomRates={roomRates}
+          currencySymbol={settings.currencySymbol}
           onClose={() => {
             setIsRoomModalOpen(false);
             setRoomToEdit(null);

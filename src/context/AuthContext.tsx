@@ -10,7 +10,21 @@ export type PermissionAction =
   | 'checkin_checkout'
   | 'manage_billing'
   | 'update_housekeeping'
-  | 'assign_housekeeping_tasks';
+  | 'assign_housekeeping_tasks'
+  // Room rate categories: edit an EXISTING category's price
+  | 'edit_room_rates'
+  // Room rate categories: add a brand-new category or remove one (Super Admin only)
+  | 'manage_rate_categories'
+  // Restaurant / POS
+  | 'manage_menu'
+  | 'create_restaurant_orders'
+  // Cashier shifts
+  | 'manage_cashier_shift' // open/close own shift
+  | 'view_all_cashier_shifts'
+  // Reports
+  | 'view_reports'
+  // Staff: grant the Super Admin role to someone (Super Admin only)
+  | 'assign_super_admin_role';
 
 interface AuthContextType {
   currentUser: StaffUser | null;
@@ -74,23 +88,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const can = (action: PermissionAction): boolean => {
     if (!currentUser) return false;
     const role = currentUser.role;
-    if (role === 'admin') return true;
+
+    // Super Admin: everything Admin can do, plus the two Super-Admin-only
+    // powers (creating/removing rate categories, granting the Super Admin
+    // role to other staff).
+    if (role === 'super_admin') return true;
+
+    // Admin: full day-to-day control of the property, EXCEPT the two
+    // Super-Admin-reserved powers above.
+    if (role === 'admin') {
+      switch (action) {
+        case 'manage_rate_categories':
+        case 'assign_super_admin_role':
+          return false;
+        default:
+          return true;
+      }
+    }
 
     if (role === 'receptionist') {
       switch (action) {
-        case 'manage_rooms':
-          return false; // Can view rooms & statuses, but not create/delete/alter rate definitions
-        case 'manage_settings':
-        case 'view_audit_logs':
-          return false;
         case 'manage_reservations':
         case 'checkin_checkout':
         case 'manage_billing':
         case 'update_housekeeping':
         case 'assign_housekeeping_tasks':
+        case 'create_restaurant_orders':
+        case 'manage_cashier_shift':
           return true;
         default:
-          return false;
+          return false; // no rooms/rates/settings/menu/reports/audit access
       }
     }
 

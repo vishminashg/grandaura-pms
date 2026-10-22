@@ -10,7 +10,7 @@ interface StaffFormModalProps {
 }
 
 export const StaffFormModal: React.FC<StaffFormModalProps> = ({ onClose, onSuccess }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, can } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -121,10 +121,16 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({ onClose, onSucce
               onChange={(e) => setRole(e.target.value as UserRole)}
               className="w-full p-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
             >
+              {can('assign_super_admin_role') && <option value="super_admin">Super Admin</option>}
               <option value="admin">Admin</option>
               <option value="receptionist">Receptionist</option>
               <option value="housekeeper">Housekeeper</option>
             </select>
+            {can('assign_super_admin_role') && (
+              <p className="text-[11px] text-slate-400 mt-1">
+                Super Admin can create or remove room rate categories and grant the Super Admin role to others.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

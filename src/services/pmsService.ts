@@ -27,6 +27,11 @@ import {
   HousekeepingStatus,
   OperationalStatus,
   ReservationStatus,
+  RoomRateCategory,
+  MenuItem,
+  RestaurantOrder,
+  RestaurantOrderItem,
+  CashierShift,
 } from '../types/hotel.ts';
 import { format, addDays, subDays, isWithinInterval, parseISO, isBefore, isAfter } from 'date-fns';
 
@@ -37,6 +42,10 @@ const PAYMENTS_COL = 'payments';
 const HOUSEKEEPING_COL = 'housekeepingTasks';
 const AUDIT_COL = 'auditLogs';
 const SETTINGS_COL = 'settings';
+const ROOM_RATES_COL = 'roomRates';
+const MENU_ITEMS_COL = 'menuItems';
+const RESTAURANT_ORDERS_COL = 'restaurantOrders';
+const CASHIER_SHIFTS_COL = 'cashierShifts';
 
 export const DEFAULT_SETTINGS: HotelSettings = {
   id: 'general',
@@ -48,9 +57,14 @@ export const DEFAULT_SETTINGS: HotelSettings = {
   checkOutTime: '11:00',
   taxRatePercent: 12.0,
   currencySymbol: '$',
+  baseCurrencyCode: 'LKR',
   cancellationPolicy: 'Free cancellation up to 48 hours prior to arrival date.',
   updatedAt: new Date().toISOString(),
 };
+
+export function slugifyRoomType(roomType: RoomType): string {
+  return roomType.toLowerCase().replace(/\s+/g, '_');
+}
 
 // -------------------------------------------------------------
 // Real-time Subscriptions
@@ -441,7 +455,7 @@ export async function createReservation(
     specialRequests?: string;
   },
   user: StaffUser
-): Promise<string> {
+): Promise<{ id: string; reservationNumber: string; invoiceNumber: string }> {
   const year = new Date().getFullYear();
   const randomDigits = Math.floor(1000 + Math.random() * 9000);
   const reservationNumber = `RES-${year}-${randomDigits}`;
@@ -542,7 +556,7 @@ export async function createReservation(
       `Created reservation ${reservationNumber} for ${data.guestName} (${data.checkInDate} to ${data.checkOutDate}, ${data.roomType}). Total: $${data.totalAmount}`
     );
 
-    return resId;
+    return { id: resId, reservationNumber, invoiceNumber };
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `${RESERVATIONS_COL}/${resId}`);
     throw error;
@@ -1168,6 +1182,25 @@ export async function seedInitialHotelData(force: boolean = false): Promise<void
       });
     }
 
+    // 1b. Seed one Room Rate Category per distinct room type, using that
+    // type's first room's rate as the starting category price, so the
+    // centrally-managed rate system (Settings > Room Rates) has sensible
+    // defaults from day one instead of starting empty.
+    const seenTypes = new Set<string>();
+    for (const r of initialRooms) {
+      if (seenTypes.has(r.roomType)) continue;
+      seenTypes.add(r.roomType);
+      const rateId = slugifyRoomType(r.roomType);
+      const rateDoc: RoomRateCategory = {
+        id: rateId,
+        roomType: r.roomType,
+        ratePerNight: r.baseNightlyRate,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'System (seed)',
+      };
+      await setDoc(doc(db, ROOM_RATES_COL, rateId), rateDoc);
+    }
+
     // 2. Settings
     await setDoc(doc(db, SETTINGS_COL, 'general'), DEFAULT_SETTINGS);
 
@@ -1687,5 +1720,331 @@ export async function seedInitialHotelData(force: boolean = false): Promise<void
     console.log('Hotel database seeded successfully!');
   } catch (err) {
     console.error('Error seeding hotel database:', err);
+  }
+}
+
+// ===============================================================
+// Room Rate Categories
+// (Super Admin: add/remove a category. Admin + Super Admin: edit price.)
+// ===============================================================
+
+export function subscribeRoomRates(callback: (rates: RoomRateCategory[]) => void) {
+  try {
+    return onSnapshot(
+      collection(db, ROOM_RATES_COL),
+      (snapshot) => {
+        const items: RoomRateCategory[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as RoomRateCategory));
+        callback(items);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, ROOM_RATES_COL)
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, ROOM_RATES_COL);
+    return () => {};
+  }
+}
+
+export async function saveRoomRateCategory(
+  roomType: RoomType,
+  ratePerNight: number,
+  user: StaffUser
+): Promise<void> {
+  const id = slugifyRoomType(roomType);
+  try {
+    const payload: RoomRateCategory = {
+      id,
+      roomType,
+      ratePerNight,
+      updatedAt: new Date().toISOString(),
+      updatedBy: user.name,
+    };
+    await setDoc(doc(db, ROOM_RATES_COL, id), payload, { merge: true });
+    await logAudit(
+      'SAVE_ROOM_RATE',
+      'RoomRate',
+      id,
+      user.name,
+      `Set ${roomType} rate to $${ratePerNight.toFixed(2)}/night`
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `${ROOM_RATES_COL}/${id}`);
+    throw error;
+  }
+}
+
+export async function deleteRoomRateCategory(roomType: RoomType, user: StaffUser): Promise<void> {
+  const id = slugifyRoomType(roomType);
+  try {
+    await deleteDoc(doc(db, ROOM_RATES_COL, id));
+    await logAudit('DELETE_ROOM_RATE', 'RoomRate', id, user.name, `Removed rate category for ${roomType}`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${ROOM_RATES_COL}/${id}`);
+    throw error;
+  }
+}
+
+// ===============================================================
+// Restaurant: Menu Management
+// ===============================================================
+
+export function subscribeMenuItems(callback: (items: MenuItem[]) => void) {
+  try {
+    return onSnapshot(
+      collection(db, MENU_ITEMS_COL),
+      (snapshot) => {
+        const items: MenuItem[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as MenuItem));
+        items.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+        callback(items);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, MENU_ITEMS_COL)
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, MENU_ITEMS_COL);
+    return () => {};
+  }
+}
+
+export async function saveMenuItem(
+  item: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+  user: StaffUser
+): Promise<void> {
+  const id = item.id || `menu_${Date.now()}`;
+  const now = new Date().toISOString();
+  try {
+    let createdAt = now;
+    if (item.id) {
+      const existing = await getDoc(doc(db, MENU_ITEMS_COL, id));
+      if (existing.exists()) createdAt = (existing.data() as MenuItem).createdAt;
+    }
+    const payload: MenuItem = {
+      id,
+      name: item.name,
+      category: item.category,
+      price: item.price,
+      isAvailable: item.isAvailable,
+      createdAt,
+      updatedAt: now,
+    };
+    await setDoc(doc(db, MENU_ITEMS_COL, id), payload);
+    await logAudit(
+      item.id ? 'UPDATE_MENU_ITEM' : 'CREATE_MENU_ITEM',
+      'MenuItem',
+      id,
+      user.name,
+      `${item.id ? 'Updated' : 'Added'} menu item "${item.name}" ($${item.price.toFixed(2)}, ${item.category})`
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `${MENU_ITEMS_COL}/${id}`);
+    throw error;
+  }
+}
+
+export async function deleteMenuItem(itemId: string, itemName: string, user: StaffUser): Promise<void> {
+  try {
+    await deleteDoc(doc(db, MENU_ITEMS_COL, itemId));
+    await logAudit('DELETE_MENU_ITEM', 'MenuItem', itemId, user.name, `Removed menu item "${itemName}"`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${MENU_ITEMS_COL}/${itemId}`);
+    throw error;
+  }
+}
+
+// ===============================================================
+// Restaurant: Orders (post to room folio, or a direct walk-in sale)
+// ===============================================================
+
+export function subscribeRestaurantOrders(callback: (orders: RestaurantOrder[]) => void) {
+  try {
+    return onSnapshot(
+      collection(db, RESTAURANT_ORDERS_COL),
+      (snapshot) => {
+        const items: RestaurantOrder[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as RestaurantOrder));
+        items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        callback(items);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, RESTAURANT_ORDERS_COL)
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, RESTAURANT_ORDERS_COL);
+    return () => {};
+  }
+}
+
+export async function createRestaurantOrder(
+  data: {
+    reservationId?: string;
+    reservationNumber?: string;
+    roomNumber?: string;
+    guestName: string;
+    items: RestaurantOrderItem[];
+    taxRatePercent: number;
+    mode: 'room' | 'direct';
+    paymentMethod?: Payment['paymentMethod'];
+  },
+  user: StaffUser
+): Promise<string> {
+  const orderId = `rord_${Date.now()}`;
+  const year = new Date().getFullYear();
+  const orderNumber = `RO-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const subtotal = Number(data.items.reduce((acc, i) => acc + i.total, 0).toFixed(2));
+  const taxAmount = Number((subtotal * (data.taxRatePercent / 100)).toFixed(2));
+  const totalAmount = Number((subtotal + taxAmount).toFixed(2));
+  const now = new Date().toISOString();
+  const guestLabel = data.guestName || 'Walk-in Guest';
+
+  const order: RestaurantOrder = {
+    id: orderId,
+    orderNumber,
+    reservationId: data.reservationId,
+    reservationNumber: data.reservationNumber,
+    roomNumber: data.roomNumber,
+    guestName: guestLabel,
+    items: data.items,
+    subtotal,
+    taxAmount,
+    totalAmount,
+    status: data.mode === 'room' ? 'posted_to_room' : 'paid_direct',
+    paymentMethod: data.paymentMethod,
+    createdAt: now,
+    createdBy: user.name,
+  };
+
+  try {
+    await setDoc(doc(db, RESTAURANT_ORDERS_COL, orderId), order);
+
+    if (data.mode === 'room' && data.reservationId) {
+      const invoiceId = `inv_${data.reservationId}`;
+      const description = data.items.map((i) => `${i.name} x${i.quantity}`).join(', ');
+      await addFolioChargeItem(
+        invoiceId,
+        data.reservationId,
+        {
+          description: `Restaurant: ${description}`,
+          category: 'Dining',
+          unitPrice: subtotal,
+          quantity: 1,
+          total: subtotal,
+          date: format(new Date(), 'yyyy-MM-dd'),
+        },
+        user,
+        data.taxRatePercent
+      );
+    } else if (data.mode === 'direct') {
+      const paymentId = `pay_${Date.now()}`;
+      const payment: Payment = {
+        id: paymentId,
+        reservationId: '',
+        guestName: guestLabel,
+        amount: totalAmount,
+        paymentMethod: data.paymentMethod || 'Cash',
+        transactionReference: `RST-${Date.now().toString().slice(-6)}`,
+        recordedBy: user.name,
+        notes: `Restaurant order ${orderNumber} (walk-in / direct sale)`,
+        createdAt: now,
+      };
+      await setDoc(doc(db, PAYMENTS_COL, paymentId), payment);
+    }
+
+    await logAudit(
+      'CREATE_RESTAURANT_ORDER',
+      'RestaurantOrder',
+      orderId,
+      user.name,
+      `Order ${orderNumber} for ${guestLabel}: ${data.items
+        .map((i) => `${i.name} x${i.quantity}`)
+        .join(', ')}. Total $${totalAmount.toFixed(2)} (${
+        order.status === 'posted_to_room' ? `posted to room ${data.roomNumber || ''}` : 'direct sale'
+      })`
+    );
+
+    return orderId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `${RESTAURANT_ORDERS_COL}/${orderId}`);
+    throw error;
+  }
+}
+
+// ===============================================================
+// Cashier Shifts
+// ===============================================================
+
+export function subscribeCashierShifts(callback: (shifts: CashierShift[]) => void) {
+  try {
+    return onSnapshot(
+      collection(db, CASHIER_SHIFTS_COL),
+      (snapshot) => {
+        const items: CashierShift[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as CashierShift));
+        items.sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
+        callback(items);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, CASHIER_SHIFTS_COL)
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, CASHIER_SHIFTS_COL);
+    return () => {};
+  }
+}
+
+export async function openCashierShift(startingCash: number, user: StaffUser): Promise<string> {
+  const id = `shift_${Date.now()}`;
+  const now = new Date().toISOString();
+  try {
+    const shift: CashierShift = {
+      id,
+      openedBy: user.id,
+      openedByName: user.name,
+      openedAt: now,
+      startingCash,
+      status: 'open',
+    };
+    await setDoc(doc(db, CASHIER_SHIFTS_COL, id), shift);
+    await logAudit(
+      'OPEN_CASHIER_SHIFT',
+      'CashierShift',
+      id,
+      user.name,
+      `Opened cashier shift with $${startingCash.toFixed(2)} starting cash`
+    );
+    return id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `${CASHIER_SHIFTS_COL}/${id}`);
+    throw error;
+  }
+}
+
+export async function closeCashierShift(
+  shiftId: string,
+  countedCash: number,
+  expectedCash: number,
+  notes: string | undefined,
+  user: StaffUser
+): Promise<void> {
+  const now = new Date().toISOString();
+  const variance = Number((countedCash - expectedCash).toFixed(2));
+  try {
+    await updateDoc(doc(db, CASHIER_SHIFTS_COL, shiftId), {
+      status: 'closed',
+      closedBy: user.id,
+      closedByName: user.name,
+      closedAt: now,
+      countedCash,
+      expectedCash,
+      variance,
+      notes: notes || '',
+    });
+    await logAudit(
+      'CLOSE_CASHIER_SHIFT',
+      'CashierShift',
+      shiftId,
+      user.name,
+      `Closed cashier shift. Expected $${expectedCash.toFixed(2)}, counted $${countedCash.toFixed(2)} (variance $${variance.toFixed(2)})`
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${CASHIER_SHIFTS_COL}/${shiftId}`);
+    throw error;
   }
 }

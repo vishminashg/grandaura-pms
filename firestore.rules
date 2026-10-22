@@ -12,8 +12,14 @@ service cloud.firestore {
         : null;
     }
 
+    function isSuperAdmin() {
+      return userRole() == 'super_admin';
+    }
+
+    // Admin-or-above: a Super Admin can do everything a regular Admin can,
+    // plus the few Super-Admin-only actions gated separately below.
     function isAdmin() {
-      return userRole() == 'admin';
+      return userRole() == 'admin' || isSuperAdmin();
     }
 
     function isReceptionist() {
@@ -115,6 +121,50 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Room rate categories (one doc per room type). Any signed-in staff
+    // can read current rates (needed to quote a reservation). Editing the
+    // price of an existing category is Admin-or-above; creating a brand
+    // new category or removing one entirely is Super-Admin-only.
+    // ---------------------------------------------------------------
+    match /roomRates/{rateId} {
+      allow read: if isSignedIn();
+      allow update: if isAdmin();
+      allow create, delete: if isSuperAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Restaurant menu: visible to all staff (receptionists/waitstaff need
+    // it to take orders). Managed (add/edit/remove items) by Admin+.
+    // ---------------------------------------------------------------
+    match /menuItems/{itemId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Restaurant orders: any signed-in staff can create an order (front
+    // desk and receptionists post charges or take walk-in sales); viewing
+    // the order log and voiding/correcting an order is Admin+.
+    // ---------------------------------------------------------------
+    match /restaurantOrders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Cashier shifts: a staff member can open/close their own shift
+    // (handled client-side); any signed-in staff may read shifts (needed
+    // to see if one is already open) but only Admin+ can see every
+    // shift's history unfiltered, and only Admin+ may delete a record.
+    // ---------------------------------------------------------------
+    match /cashierShifts/{shiftId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
     }
   }
 }

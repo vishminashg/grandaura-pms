@@ -16,13 +16,15 @@ export const Header: React.FC<HeaderProps> = ({
   const { currentUser, logout, can } = useAuth();
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'rooms', label: 'Rooms' },
-    { id: 'reservations', label: 'Reservations' },
-    { id: 'housekeeping', label: 'Housekeeping' },
-    { id: 'billing', label: 'Billing & Folios' },
-    { id: 'settings', label: 'Settings' },
-  ];
+    { id: 'dashboard', label: 'Dashboard', show: true },
+    { id: 'rooms', label: 'Rooms', show: true },
+    { id: 'reservations', label: 'Reservations', show: true },
+    { id: 'housekeeping', label: 'Housekeeping', show: true },
+    { id: 'billing', label: 'Billing & Folios', show: true },
+    { id: 'restaurant', label: 'Restaurant', show: can('create_restaurant_orders') || can('manage_menu') },
+    { id: 'reports', label: 'Reports', show: can('view_reports') },
+    { id: 'settings', label: 'Settings', show: true },
+  ].filter((item) => item.show);
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-200">

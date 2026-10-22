@@ -1,17 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Room, Reservation, RoomType, BookingSource, Payment, HotelSettings } from '../../types/hotel.ts';
+import { Room, Reservation, RoomType, BookingSource, Payment, HotelSettings, RoomRateCategory } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
   createReservation,
   checkRoomOverlapConflict,
+  slugifyRoomType,
 } from '../../services/pmsService.ts';
-import { format, addDays, differenceInDays } from 'date-fns';
+import { format, addDays, differenceInDays, startOfDay } from 'date-fns';
 import { X, Calendar, User, Bed, DollarSign, AlertCircle, ShieldAlert } from 'lucide-react';
+import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
+import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
+import { generateConfirmationLetterPdf } from '../../lib/confirmationLetter.ts';
 
 interface NewReservationModalProps {
   rooms: Room[];
   reservations: Reservation[];
   settings: HotelSettings;
+  roomRates: RoomRateCategory[];
   onClose: () => void;
   onSuccess: (resId: string) => void;
 }
@@ -20,6 +25,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   rooms,
   reservations,
   settings,
+  roomRates,
   onClose,
   onSuccess,
 }) => {
@@ -52,13 +58,25 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-update rate default when room type changes
+  // The authoritative rate for the selected Room Type/category, managed
+  // centrally in Settings > Room Rates (Super Admin creates categories,
+  // Admin+ can edit the price) rather than per individual room.
+  const categoryRate = useMemo(
+    () => roomRates.find((r) => r.id === slugifyRoomType(roomType))?.ratePerNight,
+    [roomRates, roomType]
+  );
+
+  // Auto-update the agreed rate whenever the room type/category changes,
+  // sourcing it from the centrally-managed category rate (falling back to
+  // a matching room's own stored rate only if no category rate exists yet).
   useEffect(() => {
-    const matchingRoom = rooms.find((r) => r.roomType === roomType);
-    if (matchingRoom) {
-      setCustomRate(matchingRoom.baseNightlyRate);
+    if (categoryRate !== undefined) {
+      setCustomRate(categoryRate);
+    } else {
+      const matchingRoom = rooms.find((r) => r.roomType === roomType);
+      if (matchingRoom) setCustomRate(matchingRoom.baseNightlyRate);
     }
-  }, [roomType, rooms]);
+  }, [roomType, rooms, categoryRate]);
 
   // Compute stay calculations
   const { numberOfNights, subtotal, taxAmount, totalAmount } = useMemo(() => {
@@ -122,7 +140,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     setIsSubmitting(true);
     try {
       const selectedRoom = rooms.find((r) => r.id === assignedRoomId);
-      const resId = await createReservation(
+      const result = await createReservation(
         {
           guestName,
           guestEmail,
@@ -149,7 +167,40 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
         staffUser
       );
 
-      onSuccess(resId);
+      // Auto-generate the confirmation letter PDF for the new booking
+      try {
+        generateConfirmationLetterPdf(
+          {
+            reservationNumber: result.reservationNumber,
+            guestName,
+            guestEmail,
+            guestPhone,
+            checkInDate,
+            checkOutDate,
+            numberOfNights,
+            roomType,
+            assignedRoomNumber: selectedRoom?.roomNumber,
+            adults,
+            children,
+            ratePerNight: customRate,
+            subtotal,
+            taxAmount,
+            taxRatePercent: settings.taxRatePercent,
+            discountAmount,
+            totalAmount,
+            paidAmount: initialPayment,
+            balanceAmount: Math.max(0, totalAmount - initialPayment),
+            bookingSource,
+            specialRequests,
+          },
+          settings
+        );
+      } catch (pdfErr) {
+        // Never block a successful booking just because PDF generation failed
+        console.error('Confirmation letter generation failed:', pdfErr);
+      }
+
+      onSuccess(result.id);
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err.message || 'Failed to create reservation.');
@@ -254,29 +305,15 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
               2. Stay Duration & Room Category
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">
-                  Check-In Date *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={checkInDate}
-                  onChange={(e) => setCheckInDate(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">
-                  Check-Out Date *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={checkOutDate}
-                  onChange={(e) => setCheckOutDate(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-mono"
+              <div className="sm:col-span-2">
+                <DateRangeCalendar
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  minDate={startOfDay(new Date())}
+                  onChange={(newCheckIn, newCheckOut) => {
+                    setCheckInDate(newCheckIn);
+                    setCheckOutDate(newCheckOut);
+                  }}
                 />
               </div>
 
@@ -289,12 +326,15 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   onChange={(e) => setRoomType(e.target.value as RoomType)}
                   className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"
                 >
-                  <option value="Single">Single ($95 - $115)</option>
-                  <option value="Double">Double ($140 - $175)</option>
-                  <option value="Twin">Twin ($135 - $165)</option>
-                  <option value="Deluxe">Deluxe ($210 - $240)</option>
-                  <option value="Suite">Suite ($320 - $360)</option>
-                  <option value="Family room">Family room ($260 - $290)</option>
+                  {(['Single', 'Double', 'Twin', 'Deluxe', 'Suite', 'Family room'] as RoomType[]).map((rt) => {
+                    const rate = roomRates.find((r) => r.id === slugifyRoomType(rt))?.ratePerNight;
+                    return (
+                      <option key={rt} value={rt}>
+                        {rt}
+                        {rate !== undefined ? ` (${settings.currencySymbol}${rate.toFixed(2)}/night)` : ' (rate not set)'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -380,7 +420,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-600 mb-1 font-medium">
-                  Agreed Rate per Night ($)
+                  Agreed Rate per Night ({settings.currencySymbol})
                 </label>
                 <input
                   type="number"
@@ -390,6 +430,9 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                   onChange={(e) => setCustomRate(parseFloat(e.target.value) || 0)}
                   className="w-full p-2 border border-slate-300 rounded-lg font-mono"
                 />
+                <p className="mt-1 text-[10px] text-slate-400">
+                  Defaults to the {roomType} category rate; adjust here for a one-off negotiated price.
+                </p>
               </div>
 
               <div>
@@ -431,6 +474,11 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                 <span>Total Folio Amount:</span>
                 <span className="font-mono">${totalAmount.toFixed(2)}</span>
               </div>
+              <MultiCurrencyAmount
+                amountInBase={totalAmount}
+                baseCurrencyCode={settings.baseCurrencyCode}
+                className="justify-end"
+              />
             </div>
           </div>
 

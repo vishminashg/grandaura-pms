@@ -8,6 +8,7 @@ import {
   checkRoomOverlapConflict,
 } from '../../services/pmsService.ts';
 import { format } from 'date-fns';
+import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
 import {
   Search,
   Filter,
@@ -50,7 +51,9 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedSource, setSelectedSource] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'upcoming' | 'past'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'upcoming' | 'past' | 'custom'>('all');
+  const [customRangeStart, setCustomRangeStart] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [customRangeEnd, setCustomRangeEnd] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   // Room Assignment Modal state
   const [assigningRes, setAssigningRes] = useState<Reservation | null>(null);
@@ -90,11 +93,24 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
         if (res.checkInDate < todayStr && res.status !== 'checked_in') return false;
       } else if (dateFilter === 'past') {
         if (res.checkOutDate >= todayStr && res.status !== 'checked_out') return false;
+      } else if (dateFilter === 'custom') {
+        // Include any reservation whose stay overlaps the chosen custom range at all.
+        const overlaps = res.checkInDate <= customRangeEnd && res.checkOutDate >= customRangeStart;
+        if (!overlaps) return false;
       }
 
       return true;
     });
-  }, [reservations, searchQuery, selectedStatus, selectedSource, dateFilter, todayStr]);
+  }, [
+    reservations,
+    searchQuery,
+    selectedStatus,
+    selectedSource,
+    dateFilter,
+    todayStr,
+    customRangeStart,
+    customRangeEnd,
+  ]);
 
   const handleOpenAssignModal = (res: Reservation) => {
     setAssigningRes(res);
@@ -235,9 +251,24 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
               <option value="today">Today's Activity</option>
               <option value="upcoming">Upcoming & Active</option>
               <option value="past">Past Stays</option>
+              <option value="custom">Custom Range… (Calendar)</option>
             </select>
           </div>
         </div>
+
+        {dateFilter === 'custom' && (
+          <div className="pt-2 border-t border-slate-100 max-w-sm">
+            <DateRangeCalendar
+              checkInDate={customRangeStart}
+              checkOutDate={customRangeEnd}
+              label="Custom Date Range"
+              onChange={(start, end) => {
+                setCustomRangeStart(start);
+                setCustomRangeEnd(end);
+              }}
+            />
+          </div>
+        )}
 
         <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <span>
