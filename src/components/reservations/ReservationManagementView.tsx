@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Reservation, Room, ReservationStatus, BookingSource } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import {
   checkOutReservation,
   cancelReservation,
@@ -47,6 +48,7 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
   onOpenPaymentModal,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   const staffUser = currentUser!;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -148,10 +150,12 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
         targetRoom.roomNumber,
         staffUser
       );
+      showSuccess(`Room ${targetRoom.roomNumber} assigned to ${assigningRes.guestName} (${assigningRes.reservationNumber}).`);
       setAssigningRes(null);
     } catch (err) {
       console.error(err);
       setAssignmentError('Failed to assign room.');
+      showError('Failed to assign room. Please try again.');
     }
   };
 
@@ -164,8 +168,10 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
 
     try {
       await cancelReservation(res.id, res.reservationNumber, 'Cancelled by staff request', staffUser);
+      showSuccess(`Reservation ${res.reservationNumber} cancelled.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to cancel reservation ${res.reservationNumber}.`);
     }
   };
 

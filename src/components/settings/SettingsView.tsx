@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HotelSettings, AuditLog, StaffUser, RoomRateCategory, RoomType } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import {
   saveHotelSettings,
   seedInitialHotelData,
@@ -42,6 +43,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   roomRates,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState<HotelSettings>(settings);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -80,8 +82,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setRateNotice(`${roomType} rate updated to ${settings.currencySymbol}${newRate.toFixed(2)}/night.`);
       setRateError(null);
       setTimeout(() => setRateNotice(null), 3000);
+      showSuccess(`${roomType} rate updated to ${settings.currencySymbol}${newRate.toFixed(2)}/night.`);
     } catch (err: any) {
       setRateError(err.message || 'Failed to save rate.');
+      showError(err.message || 'Failed to save rate.');
     }
   };
 
@@ -98,12 +102,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setRateError(null);
       setRateNotice(`${newCategoryType} rate category created.`);
       setTimeout(() => setRateNotice(null), 3000);
+      showSuccess(`${newCategoryType} rate category created.`);
       const stillAvailable = ALL_ROOM_TYPES.filter(
         (t) => !existingTypes.has(t) && t !== newCategoryType
       );
       if (stillAvailable.length > 0) setNewCategoryType(stillAvailable[0]);
     } catch (err: any) {
       setRateError(err.message || 'Failed to create rate category.');
+      showError(err.message || 'Failed to create rate category.');
     }
   };
 
@@ -117,8 +123,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await deleteRoomRateCategory(roomType, currentUser);
       setRateNotice(`${roomType} rate category removed.`);
       setTimeout(() => setRateNotice(null), 3000);
+      showSuccess(`${roomType} rate category removed.`);
     } catch (err: any) {
       setRateError(err.message || 'Failed to remove rate category.');
+      showError(err.message || 'Failed to remove rate category.');
     }
   };
 
@@ -136,8 +144,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await removeStaffAccount(staff.id, staff.name, currentUser);
       setStaffNotice(`Access revoked for ${staff.name}.`);
       setTimeout(() => setStaffNotice(null), 3500);
+      showSuccess(`Access revoked for ${staff.name}.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to revoke access for ${staff.name}.`);
     }
   };
 
@@ -149,8 +159,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await saveHotelSettings(formData, currentUser!);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
+      showSuccess('Hotel property settings saved successfully.');
     } catch (err) {
       console.error(err);
+      showError('Failed to save settings. Please try again.');
     }
   };
 
@@ -163,9 +175,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsResetting(true);
     try {
       await seedInitialHotelData(true);
-      alert('Demo data re-seeded successfully.');
+      showSuccess('Demo data re-seeded successfully.');
     } catch (err) {
       console.error(err);
+      showError('Failed to reset demo data.');
     } finally {
       setIsResetting(false);
     }
@@ -684,6 +697,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             setIsStaffModalOpen(false);
             setStaffNotice('New staff account created successfully.');
             setTimeout(() => setStaffNotice(null), 3500);
+            showSuccess('New staff account created successfully.');
           }}
         />
       )}

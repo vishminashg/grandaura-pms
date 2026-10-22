@@ -9,6 +9,7 @@ import {
   Payment,
 } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import {
   saveMenuItem,
   deleteMenuItem,
@@ -49,6 +50,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
   settings,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   const staffUser = currentUser!;
   const currency = settings.currencySymbol;
 
@@ -145,14 +147,16 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       setCart({});
       setWalkInGuestName('');
       setSelectedReservationId('');
-      setOrderNotice(
+      const successMsg =
         orderMode === 'room'
           ? `Order posted to Room ${roomNumber || ''} folio.`
-          : `Walk-in sale recorded (${currency}${cartTotal.toFixed(2)}).`
-      );
+          : `Walk-in sale recorded (${currency}${cartTotal.toFixed(2)}).`;
+      setOrderNotice(successMsg);
       setTimeout(() => setOrderNotice(null), 4000);
+      showSuccess(successMsg);
     } catch (err: any) {
       setOrderError(err.message || 'Failed to place order.');
+      showError(err.message || 'Failed to place order.');
     } finally {
       setIsPlacingOrder(false);
     }
@@ -178,16 +182,20 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       setNewItemName('');
       setNewItemPrice('');
       setMenuError(null);
+      showSuccess(`"${newItemName.trim()}" added to the menu.`);
     } catch (err: any) {
       setMenuError(err.message || 'Failed to add menu item.');
+      showError(err.message || 'Failed to add menu item.');
     }
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
     try {
       await saveMenuItem({ ...item, isAvailable: !item.isAvailable }, staffUser);
+      showSuccess(`"${item.name}" marked ${item.isAvailable ? 'unavailable' : 'available'}.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to update "${item.name}".`);
     }
   };
 
@@ -195,8 +203,10 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
     if (!window.confirm(`Remove "${item.name}" from the menu?`)) return;
     try {
       await deleteMenuItem(item.id, item.name, staffUser);
+      showSuccess(`"${item.name}" removed from the menu.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to remove "${item.name}".`);
     }
   };
 
@@ -234,8 +244,10 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       await openCashierShift(amount, staffUser);
       setStartingCashInput('');
       setShiftError(null);
+      showSuccess(`Cashier shift opened with ${currency}${amount.toFixed(2)} starting cash.`);
     } catch (err: any) {
       setShiftError(err.message || 'Failed to open shift.');
+      showError(err.message || 'Failed to open shift.');
     }
   };
 
@@ -248,11 +260,18 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
     }
     try {
       await closeCashierShift(myOpenShift.id, counted, expectedCashForOpenShift, shiftNotes, staffUser);
+      const variance = Number((counted - expectedCashForOpenShift).toFixed(2));
       setCountedCashInput('');
       setShiftNotes('');
       setShiftError(null);
+      showSuccess(
+        variance === 0
+          ? 'Shift closed. Cash drawer balanced perfectly.'
+          : `Shift closed. Variance: ${variance > 0 ? '+' : ''}${currency}${variance.toFixed(2)}.`
+      );
     } catch (err: any) {
       setShiftError(err.message || 'Failed to close shift.');
+      showError(err.message || 'Failed to close shift.');
     }
   };
 

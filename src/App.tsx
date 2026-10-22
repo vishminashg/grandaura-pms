@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
+import { ToastProvider, useToast } from './context/ToastContext.tsx';
 import { LoginView } from './components/auth/LoginView.tsx';
 import { Header } from './components/common/Header.tsx';
 import { DashboardView } from './components/dashboard/DashboardView.tsx';
@@ -51,6 +52,7 @@ import { Loader2, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
 
 function HotelPMSApp() {
   const { currentUser } = useAuth();
+  const { showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Core Data States
@@ -68,7 +70,6 @@ function HotelPMSApp() {
   const [cashierShifts, setCashierShifts] = useState<CashierShift[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modal States
   const [isNewReservationOpen, setIsNewReservationOpen] = useState(false);
@@ -85,10 +86,7 @@ function HotelPMSApp() {
   const [paymentTargetInv, setPaymentTargetInv] = useState<Invoice | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+  const showToast = showSuccess;
 
   // -------------------------------------------------------------
   // Real-time Subscriptions & Initial Seeding
@@ -405,13 +403,6 @@ function HotelPMSApp() {
         />
       )}
 
-      {/* Floating Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-800 text-xs font-medium flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -436,8 +427,10 @@ function AuthGate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+    </ToastProvider>
   );
 }

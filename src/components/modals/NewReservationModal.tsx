@@ -11,6 +11,7 @@ import { X, Calendar, User, Bed, DollarSign, AlertCircle, ShieldAlert } from 'lu
 import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
 import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
 import { generateConfirmationLetterPdf } from '../../lib/confirmationLetter.ts';
+import { useToast } from '../../context/ToastContext.tsx';
 
 interface NewReservationModalProps {
   rooms: Room[];
@@ -30,6 +31,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   onSuccess,
 }) => {
   const { currentUser } = useAuth();
+  const { showInfo } = useToast();
   const staffUser = currentUser!;
   const today = format(new Date(), 'yyyy-MM-dd');
   const defaultDeparture = format(addDays(new Date(), 2), 'yyyy-MM-dd');
@@ -198,6 +200,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
       } catch (pdfErr) {
         // Never block a successful booking just because PDF generation failed
         console.error('Confirmation letter generation failed:', pdfErr);
+        showInfo('Reservation confirmed, but the confirmation letter PDF could not be generated.');
       }
 
       onSuccess(result.id);

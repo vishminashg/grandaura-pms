@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Room, HousekeepingTask, HousekeepingStatus } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import {
   updateRoomHousekeeping,
   createHousekeepingTask,
@@ -31,6 +32,7 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({
   housekeepingTasks,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   // This view only ever renders once a staff member is signed in, so the
   // non-null assertion here just reflects that guarantee to TypeScript.
   const staffUser = currentUser!;
@@ -83,8 +85,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({
     if (!can('update_housekeeping')) return;
     try {
       await updateRoomHousekeeping(room.id, room.roomNumber, status, staffUser, notes);
+      showSuccess(`Room ${room.roomNumber} set to ${status.replace('_', ' ')}.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to update Room ${room.roomNumber}.`);
     }
   };
 
@@ -120,8 +124,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({
           );
         }
       }
+      showSuccess(`Task for Room ${task.roomNumber} marked ${newStatus.replace('_', ' ')}.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to update task status for Room ${task.roomNumber}.`);
     }
   };
 
@@ -161,8 +167,10 @@ export const HousekeepingView: React.FC<HousekeepingViewProps> = ({
       setIsTaskModalOpen(false);
       setSelectedRoomId('');
       setTaskNotes('');
+      showSuccess(`${taskType} task dispatched for Room ${targetRoom.roomNumber}.`);
     } catch (err) {
       console.error(err);
+      showError('Failed to create housekeeping task.');
     }
   };
 

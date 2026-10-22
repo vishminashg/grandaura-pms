@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Invoice, Payment, Reservation, InvoiceItem, HotelSettings } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import { recordPayment, addFolioChargeItem } from '../../services/pmsService.ts';
 import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
 import { format } from 'date-fns';
@@ -34,6 +35,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
   onOpenPaymentModal,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -111,8 +113,10 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
       if (updated) setSelectedInvoice(updated);
 
       setIsChargeModalOpen(false);
+      showSuccess(`Charge of ${settings.currencySymbol}${(chargeUnitPrice * chargeQuantity).toFixed(2)} posted to ${selectedInvoice.invoiceNumber}.`);
     } catch (err) {
       console.error(err);
+      showError('Failed to post the charge. Please try again.');
     }
   };
 

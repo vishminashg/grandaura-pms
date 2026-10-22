@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Room, Reservation, RoomType, OperationalStatus, HousekeepingStatus, RoomRateCategory } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
 import {
   getRoomOccupancyStatus,
   updateRoomHousekeeping,
@@ -46,6 +47,7 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
   onOpenEditRoom,
 }) => {
   const { currentUser, can } = useAuth();
+  const { showSuccess, showError } = useToast();
   const staffUser = currentUser!;
 
   const rateFor = (room: Room): number => {
@@ -122,8 +124,10 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
     const target = nextStatus[room.housekeepingStatus];
     try {
       await updateRoomHousekeeping(room.id, room.roomNumber, target, staffUser);
+      showSuccess(`Room ${room.roomNumber} marked ${target.replace('_', ' ')}.`);
     } catch (err) {
       console.error(err);
+      showError(`Failed to update housekeeping status for Room ${room.roomNumber}.`);
     }
   };
 
@@ -139,8 +143,14 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
         staffUser,
         nextStatus === 'out_of_order' ? 'Manual status change' : 'Restored to service'
       );
+      showSuccess(
+        nextStatus === 'out_of_order'
+          ? `Room ${room.roomNumber} marked Out of Order.`
+          : `Room ${room.roomNumber} restored to Active service.`
+      );
     } catch (err) {
       console.error(err);
+      showError(`Failed to update operational status for Room ${room.roomNumber}.`);
     }
   };
 

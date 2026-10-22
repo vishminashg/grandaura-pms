@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Reservation, Payment, Room, HotelSettings, RestaurantOrder } from '../../types/hotel.ts';
+import { useToast } from '../../context/ToastContext.tsx';
 import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
 import { format, startOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -29,6 +30,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   restaurantOrders,
   settings,
 }) => {
+  const { showSuccess, showError } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [rangeStart, setRangeStart] = useState<string>(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [rangeEnd, setRangeEnd] = useState<string>(today);
@@ -88,6 +90,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }, [rooms, reservations, today]);
 
   const handleExportExcel = () => {
+    try {
+      doExportExcel();
+      showSuccess(`Excel report exported for ${rangeStart} to ${rangeEnd}.`);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to export the Excel report.');
+    }
+  };
+
+  const doExportExcel = () => {
     const wb = XLSX.utils.book_new();
 
     const summarySheet = XLSX.utils.aoa_to_sheet([
@@ -140,6 +152,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   const handleExportPdf = () => {
+    try {
+      doExportPdf();
+      showSuccess(`PDF report exported for ${rangeStart} to ${rangeEnd}.`);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to export the PDF report.');
+    }
+  };
+
+  const doExportPdf = () => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const margin = 15;
     let y = 18;
