@@ -118,6 +118,18 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         ))}
       </div>
+
+      {/* Developer Credit Strip */}
+      <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-1 flex items-center justify-center gap-1.5">
+        <img
+          src="/genzdev-logo.png"
+          alt="Gen Z Dev Technology"
+          className="w-3.5 h-3.5 rounded-sm object-contain"
+        />
+        <span className="text-[10px] text-slate-400">
+          Powered by <span className="font-semibold text-slate-500">Gen Z Dev Technology</span>
+        </span>
+      </div>
     </header>
   );
 };
