@@ -3,6 +3,7 @@ import { Room, RoomType, OperationalStatus, HousekeepingStatus, RoomRateCategory
 import { useAuth } from '../../context/AuthContext.tsx';
 import { createRoom, updateRoomDetails, slugifyRoomType } from '../../services/pmsService.ts';
 import { X, BedDouble, AlertCircle, Info } from 'lucide-react';
+import { Money } from '../common/Money.tsx';
 
 interface RoomFormModalProps {
   roomToEdit?: Room | null;
@@ -215,7 +216,7 @@ export const RoomFormModal: React.FC<RoomFormModalProps> = ({
                 Nightly Rate (set by Room Type)
               </label>
               <div className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg font-mono text-slate-700">
-                {currencySymbol}{baseNightlyRate.toFixed(2)}
+                <Money amount={baseNightlyRate} />
                 {!rateForSelectedType && (
                   <span className="ml-2 text-amber-600 font-sans font-normal">(no rate set yet)</span>
                 )}

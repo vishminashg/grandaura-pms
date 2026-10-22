@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { Room, Reservation, Payment, HousekeepingTask } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
+import { CurrencySelector } from '../common/CurrencySelector.tsx';
+import { Money } from '../common/Money.tsx';
 import { format, subDays, addDays, isSameDay, parseISO } from 'date-fns';
 import {
   ResponsiveContainer,
@@ -52,6 +55,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToTab,
 }) => {
   const { can } = useAuth();
+  const { formatAmount } = useDisplayCurrency();
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // ----------------------------------------------------------------------
@@ -228,6 +232,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* Display Currency Selector */}
+      <CurrencySelector />
+
       {/* 8 Mandatory Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Rooms */}
@@ -370,7 +377,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums font-mono">
-              ${metrics.todayRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <Money amount={metrics.todayRevenue} />
             </span>
           </div>
           <div className="mt-3 text-xs text-slate-500 flex items-center gap-1.5">
@@ -456,7 +463,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="text-right">
               <span className="text-lg font-bold text-slate-900 tabular-nums font-mono">
-                ${metrics.todayRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <Money amount={metrics.todayRevenue} />
               </span>
               <span className="block text-[11px] text-slate-400">Today</span>
             </div>
@@ -475,7 +482,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div className="bg-slate-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg">
                           <p className="font-semibold">{d.label}</p>
                           <p className="mt-1 text-slate-300">
-                            Revenue: <span className="text-emerald-400 font-mono font-medium">${d.revenue.toFixed(2)}</span>
+                            Revenue: <span className="text-emerald-400 font-mono font-medium">{formatAmount(d.revenue)}</span>
                           </p>
                         </div>
                       );
@@ -617,7 +624,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
                             <span>Room {res.assignedRoomNumber || 'N/A'}</span>
                             <span aria-hidden="true">·</span>
-                            <span>Balance: ${res.balanceAmount.toFixed(2)}</span>
+                            <span>Balance: {formatAmount(res.balanceAmount)}</span>
                           </div>
                         </div>
                         {can('checkin_checkout') && (
@@ -689,11 +696,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-semibold text-slate-900 font-mono tabular-nums">
-                        ${res.totalAmount.toFixed(2)}
+                        <Money amount={res.totalAmount} />
                       </div>
                       <div className="text-[11px] text-slate-400">
                         {res.balanceAmount > 0 ? (
-                          <span className="text-amber-600 font-medium">Bal: ${res.balanceAmount.toFixed(2)}</span>
+                          <span className="text-amber-600 font-medium">Bal: {formatAmount(res.balanceAmount)}</span>
                         ) : (
                           <span className="text-emerald-600 font-medium">Paid</span>
                         )}

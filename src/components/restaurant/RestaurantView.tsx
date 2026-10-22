@@ -10,6 +10,8 @@ import {
 } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
+import { Money } from '../common/Money.tsx';
 import {
   saveMenuItem,
   deleteMenuItem,
@@ -51,6 +53,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
 }) => {
   const { currentUser, can } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { formatAmount } = useDisplayCurrency();
   const staffUser = currentUser!;
   const currency = settings.currencySymbol;
 
@@ -150,7 +153,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       const successMsg =
         orderMode === 'room'
           ? `Order posted to Room ${roomNumber || ''} folio.`
-          : `Walk-in sale recorded (${currency}${cartTotal.toFixed(2)}).`;
+          : `Walk-in sale recorded (${formatAmount(cartTotal)}).`;
       setOrderNotice(successMsg);
       setTimeout(() => setOrderNotice(null), 4000);
       showSuccess(successMsg);
@@ -244,7 +247,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       await openCashierShift(amount, staffUser);
       setStartingCashInput('');
       setShiftError(null);
-      showSuccess(`Cashier shift opened with ${currency}${amount.toFixed(2)} starting cash.`);
+      showSuccess(`Cashier shift opened with ${formatAmount(amount)} starting cash.`);
     } catch (err: any) {
       setShiftError(err.message || 'Failed to open shift.');
       showError(err.message || 'Failed to open shift.');
@@ -267,7 +270,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
       showSuccess(
         variance === 0
           ? 'Shift closed. Cash drawer balanced perfectly.'
-          : `Shift closed. Variance: ${variance > 0 ? '+' : ''}${currency}${variance.toFixed(2)}.`
+          : `Shift closed. Variance: ${variance > 0 ? '+' : variance < 0 ? '-' : ''}${formatAmount(Math.abs(variance))}.`
       );
     } catch (err: any) {
       setShiftError(err.message || 'Failed to close shift.');
@@ -330,7 +333,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                         <div>
                           <div className="text-xs font-semibold text-slate-900">{item.name}</div>
                           <div className="text-[11px] text-slate-500 font-mono">
-                            {currency}{item.price.toFixed(2)}
+                            <Money amount={item.price} />
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -392,7 +395,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                   cartItems.map((i) => (
                     <div key={i.menuItemId} className="flex justify-between text-slate-700">
                       <span>{i.name} × {i.quantity}</span>
-                      <span className="font-mono">{currency}{i.total.toFixed(2)}</span>
+                      <span className="font-mono"><Money amount={i.total} /></span>
                     </div>
                   ))
                 )}
@@ -401,15 +404,15 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
               <div className="pt-2 border-t border-slate-100 text-xs space-y-1">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
-                  <span className="font-mono">{currency}{cartSubtotal.toFixed(2)}</span>
+                  <span className="font-mono"><Money amount={cartSubtotal} /></span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Tax ({settings.taxRatePercent}%)</span>
-                  <span className="font-mono">{currency}{cartTax.toFixed(2)}</span>
+                  <span className="font-mono"><Money amount={cartTax} /></span>
                 </div>
                 <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">
                   <span>Total</span>
-                  <span className="font-mono">{currency}{cartTotal.toFixed(2)}</span>
+                  <span className="font-mono"><Money amount={cartTotal} /></span>
                 </div>
               </div>
 
@@ -510,7 +513,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                         {o.items.map((i) => `${i.name} x${i.quantity}`).join(', ')}
                       </td>
                       <td className="py-2 px-4 text-right font-mono font-semibold">
-                        {currency}{o.totalAmount.toFixed(2)}
+                        <Money amount={o.totalAmount} />
                       </td>
                       <td className="py-2 px-4">
                         <span
@@ -605,7 +608,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                     <tr key={item.id}>
                       <td className="py-2.5 px-4 font-medium text-slate-900">{item.name}</td>
                       <td className="py-2.5 px-4 text-slate-600">{item.category}</td>
-                      <td className="py-2.5 px-4 text-right font-mono">{currency}{item.price.toFixed(2)}</td>
+                      <td className="py-2.5 px-4 text-right font-mono"><Money amount={item.price} /></td>
                       <td className="py-2.5 px-4">
                         <button
                           onClick={() => handleToggleAvailability(item)}
@@ -680,11 +683,11 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                   </div>
                   <div className="flex justify-between text-xs text-slate-600">
                     <span>Starting Cash</span>
-                    <span className="font-mono">{currency}{myOpenShift.startingCash.toFixed(2)}</span>
+                    <span className="font-mono"><Money amount={myOpenShift.startingCash} /></span>
                   </div>
                   <div className="flex justify-between text-xs font-semibold text-slate-900">
                     <span>Expected Cash in Drawer</span>
-                    <span className="font-mono">{currency}{expectedCashForOpenShift.toFixed(2)}</span>
+                    <span className="font-mono"><Money amount={expectedCashForOpenShift} /></span>
                   </div>
                   <label className="block text-xs font-semibold text-slate-700 pt-1">Counted Cash ({currency})</label>
                   <input
@@ -744,7 +747,7 @@ export const RestaurantView: React.FC<RestaurantViewProps> = ({
                         <td className="py-2.5 px-4 text-right font-mono">
                           {s.variance !== undefined ? (
                             <span className={s.variance === 0 ? 'text-emerald-700' : s.variance > 0 ? 'text-blue-700' : 'text-rose-700'}>
-                              {s.variance > 0 ? '+' : ''}{currency}{s.variance.toFixed(2)}
+                              {s.variance > 0 ? '+' : s.variance < 0 ? '-' : ''}{formatAmount(Math.abs(s.variance))}
                             </span>
                           ) : '—'}
                         </td>

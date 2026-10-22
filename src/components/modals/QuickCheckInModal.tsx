@@ -3,6 +3,7 @@ import { Reservation, Room } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { checkInReservation, checkRoomOverlapConflict } from '../../services/pmsService.ts';
 import { X, LogIn, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 
 interface QuickCheckInModalProps {
   initialReservation?: Reservation;
@@ -20,6 +21,7 @@ export const QuickCheckInModal: React.FC<QuickCheckInModalProps> = ({
   onSuccess,
 }) => {
   const { currentUser } = useAuth();
+  const { formatAmount } = useDisplayCurrency();
   const staffUser = currentUser!;
   const confirmedReservations = useMemo(
     () => reservations.filter((r) => r.status === 'confirmed'),
@@ -173,7 +175,7 @@ export const QuickCheckInModal: React.FC<QuickCheckInModalProps> = ({
               <div className="flex justify-between pt-1 border-t border-slate-200">
                 <span>Folio Balance:</span>
                 <span className="font-mono font-bold text-slate-900">
-                  ${activeRes.balanceAmount.toFixed(2)} (Total: ${activeRes.totalAmount.toFixed(2)})
+                  {formatAmount(activeRes.balanceAmount)} (Total: {formatAmount(activeRes.totalAmount)})
                 </span>
               </div>
             </div>

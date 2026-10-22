@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Reservation, Payment, Room, HotelSettings, RestaurantOrder } from '../../types/hotel.ts';
 import { useToast } from '../../context/ToastContext.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
 import { format, startOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -31,6 +32,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   settings,
 }) => {
   const { showSuccess, showError } = useToast();
+  const { formatAmount } = useDisplayCurrency();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [rangeStart, setRangeStart] = useState<string>(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [rangeEnd, setRangeEnd] = useState<string>(today);
@@ -221,7 +223,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Reports & Revenue</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Select a date range, then export the full report to Excel or PDF
+          Select a date range, then export the full report to Excel or PDF. On-screen figures reflect your selected
+          display currency; exported files are always in the hotel's base accounting currency ({settings.baseCurrencyCode}).
         </p>
       </div>
 
@@ -259,9 +262,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Payments', value: `${currency}${totalRevenue.toFixed(2)}`, icon: DollarSign, color: 'text-emerald-700' },
-          { label: 'Room Revenue', value: `${currency}${roomRevenue.toFixed(2)}`, icon: BedDouble, color: 'text-blue-700' },
-          { label: 'Restaurant Revenue', value: `${currency}${diningRevenue.toFixed(2)}`, icon: UtensilsCrossed, color: 'text-amber-700' },
+          { label: 'Total Payments', value: formatAmount(totalRevenue), icon: DollarSign, color: 'text-emerald-700' },
+          { label: 'Room Revenue', value: formatAmount(roomRevenue), icon: BedDouble, color: 'text-blue-700' },
+          { label: 'Restaurant Revenue', value: formatAmount(diningRevenue), icon: UtensilsCrossed, color: 'text-amber-700' },
           { label: 'Current Occupancy', value: `${occupancyPct}%`, icon: TrendingUp, color: 'text-indigo-700' },
         ].map((card) => (
           <div key={card.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
@@ -300,7 +303,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <tr key={d.day}>
                     <td className="py-2.5 px-4 font-mono text-slate-900">{d.day}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-semibold">
-                      {currency}{d.payments.toFixed(2)}
+                      {formatAmount(d.payments)}
                     </td>
                     <td className="py-2.5 px-4 text-right tabular-nums text-slate-600">{d.count}</td>
                   </tr>

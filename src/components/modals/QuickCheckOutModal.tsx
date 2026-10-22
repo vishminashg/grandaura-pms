@@ -3,6 +3,7 @@ import { Reservation, Room, Payment } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { checkOutReservation, recordPayment } from '../../services/pmsService.ts';
 import { X, LogOut, DollarSign, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 
 interface QuickCheckOutModalProps {
   initialReservation?: Reservation;
@@ -20,6 +21,7 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
   onSuccess,
 }) => {
   const { currentUser } = useAuth();
+  const { formatAmount } = useDisplayCurrency();
   const staffUser = currentUser!;
   const inHouseGuests = useMemo(
     () => reservations.filter((r) => r.status === 'checked_in'),
@@ -122,7 +124,7 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
               ) : (
                 inHouseGuests.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.guestName} (Room {r.assignedRoomNumber || 'N/A'}) · Due out: {r.checkOutDate} · Bal: ${r.balanceAmount.toFixed(2)}
+                    {r.guestName} (Room {r.assignedRoomNumber || 'N/A'}) · Due out: {r.checkOutDate} · Bal: {formatAmount(r.balanceAmount)}
                   </option>
                 ))
               )}
@@ -147,18 +149,18 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-200">
                   <span>Total Charges Billed:</span>
-                  <span className="font-mono font-medium">${activeRes.totalAmount.toFixed(2)}</span>
+                  <span className="font-mono font-medium">{formatAmount(activeRes.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-emerald-700">
                   <span>Payments Received:</span>
-                  <span className="font-mono font-medium">${activeRes.paidAmount.toFixed(2)}</span>
+                  <span className="font-mono font-medium">{formatAmount(activeRes.paidAmount)}</span>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-200 font-bold text-sm">
                   <span className={hasOutstandingBalance ? 'text-amber-800' : 'text-emerald-700'}>
                     Outstanding Balance:
                   </span>
                   <span className={`font-mono ${hasOutstandingBalance ? 'text-amber-800' : 'text-emerald-700'}`}>
-                    ${activeRes.balanceAmount.toFixed(2)}
+                    {formatAmount(activeRes.balanceAmount)}
                   </span>
                 </div>
               </div>
@@ -168,7 +170,7 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
                 <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg space-y-3">
                   <div className="font-semibold text-amber-900 flex items-center justify-between">
                     <span>Outstanding Settlement Required</span>
-                    <span className="font-mono text-sm">${activeRes.balanceAmount.toFixed(2)}</span>
+                    <span className="font-mono text-sm">{formatAmount(activeRes.balanceAmount)}</span>
                   </div>
                   <p className="text-[11px] text-amber-800">
                     Process final payment now to settle folio and finalize check-out.
@@ -194,7 +196,7 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
               ) : (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Folio is fully settled ($0.00 balance). Ready to finalize checkout.</span>
+                  <span>Folio is fully settled ({formatAmount(0)} balance). Ready to finalize checkout.</span>
                 </div>
               )}
 
@@ -222,7 +224,7 @@ export const QuickCheckOutModal: React.FC<QuickCheckOutModalProps> = ({
               {isSubmitting
                 ? 'Processing...'
                 : hasOutstandingBalance
-                ? `Settle $${activeRes?.balanceAmount.toFixed(2)} & Check Out`
+                ? `Settle ${formatAmount(activeRes?.balanceAmount ?? 0)} & Check Out`
                 : 'Complete Check-Out'}
             </button>
           </div>

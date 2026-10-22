@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Room, Reservation, RoomType, OperationalStatus, HousekeepingStatus, RoomRateCategory } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { Money } from '../common/Money.tsx';
 import {
   getRoomOccupancyStatus,
   updateRoomHousekeeping,
@@ -364,7 +365,7 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
                         <span aria-hidden="true">·</span>
                         <span>Floor {room.floor}</span>
                         <span aria-hidden="true">·</span>
-                        <span className="tabular-nums font-mono">{currencySymbol}{rateFor(room).toFixed(2)}/night</span>
+                        <span className="tabular-nums font-mono"><Money amount={rateFor(room)} />/night</span>
                       </div>
                     </div>
 
@@ -506,7 +507,7 @@ export const RoomManagementView: React.FC<RoomManagementViewProps> = ({
                         {room.bedConfiguration} (Max {room.maxOccupancy})
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
-                        {currencySymbol}{rateFor(room).toFixed(2)}
+                        <Money amount={rateFor(room)} />
                       </td>
                       <td className="py-3 px-4">
                         <button

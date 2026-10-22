@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { ToastProvider, useToast } from './context/ToastContext.tsx';
+import { DisplayCurrencyProvider } from './context/DisplayCurrencyContext.tsx';
 import { LoginView } from './components/auth/LoginView.tsx';
 import { Header } from './components/common/Header.tsx';
 import { DashboardView } from './components/dashboard/DashboardView.tsx';
@@ -162,6 +163,7 @@ function HotelPMSApp() {
   }, []);
 
   return (
+    <DisplayCurrencyProvider baseCurrencyCode={settings?.baseCurrencyCode || 'LKR'}>
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* Top Header */}
       <Header
@@ -404,6 +406,7 @@ function HotelPMSApp() {
       )}
 
     </div>
+    </DisplayCurrencyProvider>
   );
 }
 

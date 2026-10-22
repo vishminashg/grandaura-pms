@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Reservation, Room, ReservationStatus, BookingSource } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { Money } from '../common/Money.tsx';
 import {
   checkOutReservation,
   cancelReservation,
@@ -408,12 +409,12 @@ export const ReservationManagementView: React.FC<ReservationManagementViewProps>
                       {/* Total & Balance */}
                       <td className="py-3 px-4 text-right">
                         <div className="font-mono font-semibold text-slate-900 tabular-nums">
-                          ${res.totalAmount.toFixed(2)}
+                          <Money amount={res.totalAmount} />
                         </div>
                         <div className="text-[11px] font-mono tabular-nums">
                           {res.balanceAmount > 0.01 ? (
                             <span className="text-amber-700 font-semibold">
-                              Due: ${res.balanceAmount.toFixed(2)}
+                              Due: <Money amount={res.balanceAmount} />
                             </span>
                           ) : (
                             <span className="text-emerald-700 font-medium">Settled</span>

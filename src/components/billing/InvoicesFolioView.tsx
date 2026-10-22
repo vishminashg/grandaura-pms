@@ -3,7 +3,8 @@ import { Invoice, Payment, Reservation, InvoiceItem, HotelSettings } from '../..
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { recordPayment, addFolioChargeItem } from '../../services/pmsService.ts';
-import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
+import { Money } from '../common/Money.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 import { format } from 'date-fns';
 import {
   Search,
@@ -36,6 +37,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
 }) => {
   const { currentUser, can } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { formatAmount } = useDisplayCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -113,7 +115,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
       if (updated) setSelectedInvoice(updated);
 
       setIsChargeModalOpen(false);
-      showSuccess(`Charge of ${settings.currencySymbol}${(chargeUnitPrice * chargeQuantity).toFixed(2)} posted to ${selectedInvoice.invoiceNumber}.`);
+      showSuccess(`Charge of ${formatAmount(chargeUnitPrice * chargeQuantity)} posted to ${selectedInvoice.invoiceNumber}.`);
     } catch (err) {
       console.error(err);
       showError('Failed to post the charge. Please try again.');
@@ -155,7 +157,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
             Total Billed Invoices
           </span>
           <span className="text-2xl font-bold text-slate-900 tabular-nums font-mono mt-1 block">
-            ${billingTotals.totalInvoiced.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Money amount={billingTotals.totalInvoiced} />
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Across {invoices.length} issued folios
@@ -167,7 +169,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
             Collected Payments
           </span>
           <span className="text-2xl font-bold text-emerald-700 tabular-nums font-mono mt-1 block">
-            ${billingTotals.totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Money amount={billingTotals.totalCollected} />
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Settled transactions
@@ -179,7 +181,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
             Outstanding Receivable Balance
           </span>
           <span className="text-2xl font-bold text-amber-700 tabular-nums font-mono mt-1 block">
-            ${billingTotals.totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <Money amount={billingTotals.totalOutstanding} />
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Due upon guest checkout
@@ -247,15 +249,15 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                         {inv.guestName}
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
-                        ${inv.totalAmount.toFixed(2)}
+                        <Money amount={inv.totalAmount} />
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">
                         {inv.balanceAmount > 0.01 ? (
                           <span className="text-amber-700 font-semibold">
-                            ${inv.balanceAmount.toFixed(2)}
+                            <Money amount={inv.balanceAmount} />
                           </span>
                         ) : (
-                          <span className="text-emerald-700 font-medium">$0.00</span>
+                          <span className="text-emerald-700 font-medium">{formatAmount(0)}</span>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -353,11 +355,11 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                           {item.description}
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          {item.category} · Qty {item.quantity} × ${item.unitPrice.toFixed(2)}
+                          {item.category} · Qty {item.quantity} × {formatAmount(item.unitPrice)}
                         </div>
                       </div>
                       <div className="font-mono font-semibold text-slate-900 tabular-nums">
-                        ${item.total.toFixed(2)}
+                        <Money amount={item.total} />
                       </div>
                     </div>
                   ))}
@@ -369,38 +371,33 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
                   <span className="font-mono tabular-nums font-medium">
-                    ${selectedInvoice.subtotal.toFixed(2)}
+                    <Money amount={selectedInvoice.subtotal} />
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Taxes & Hotel Fees ({settings.taxRatePercent}%)</span>
                   <span className="font-mono tabular-nums font-medium">
-                    ${selectedInvoice.taxAmount.toFixed(2)}
+                    <Money amount={selectedInvoice.taxAmount} />
                   </span>
                 </div>
                 {selectedInvoice.discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>Discounts Applied</span>
                     <span className="font-mono tabular-nums font-medium">
-                      -${selectedInvoice.discountAmount.toFixed(2)}
+                      -{formatAmount(selectedInvoice.discountAmount)}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-900 font-bold text-sm pt-1.5 border-t border-slate-200">
                   <span>Total Due</span>
                   <span className="font-mono tabular-nums">
-                    ${selectedInvoice.totalAmount.toFixed(2)}
+                    <Money amount={selectedInvoice.totalAmount} />
                   </span>
                 </div>
-                <MultiCurrencyAmount
-                  amountInBase={selectedInvoice.totalAmount}
-                  baseCurrencyCode={settings.baseCurrencyCode}
-                  className="justify-end -mt-1"
-                />
                 <div className="flex justify-between text-slate-600 pt-1">
                   <span>Amount Paid / Credits</span>
                   <span className="font-mono tabular-nums text-emerald-700 font-medium">
-                    ${selectedInvoice.paidAmount.toFixed(2)}
+                    <Money amount={selectedInvoice.paidAmount} />
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-sm pt-1 border-t border-slate-100">
@@ -412,7 +409,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                       selectedInvoice.balanceAmount > 0.01 ? 'text-amber-800' : 'text-emerald-700'
                     }`}
                   >
-                    ${selectedInvoice.balanceAmount.toFixed(2)}
+                    <Money amount={selectedInvoice.balanceAmount} />
                   </span>
                 </div>
               </div>
@@ -433,7 +430,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                       >
                         <div>
                           <div className="font-semibold text-slate-800">
-                            ${p.amount.toFixed(2)} · {p.paymentMethod}
+                            {formatAmount(p.amount)} · {p.paymentMethod}
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono">
                             Ref: {p.transactionReference} · By {p.recordedBy}
@@ -461,7 +458,7 @@ export const InvoicesFolioView: React.FC<InvoicesFolioViewProps> = ({
                     className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Record Payment (${selectedInvoice.balanceAmount.toFixed(2)})</span>
+                    <span>Record Payment ({formatAmount(selectedInvoice.balanceAmount)})</span>
                   </button>
                 </div>
               )}

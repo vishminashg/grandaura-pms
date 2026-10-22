@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HotelSettings, AuditLog, StaffUser, RoomRateCategory, RoomType } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 import {
   saveHotelSettings,
   seedInitialHotelData,
@@ -44,6 +45,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const { currentUser, can } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { formatAmount, displayCurrency, baseCurrencyCode } = useDisplayCurrency();
   const [formData, setFormData] = useState<HotelSettings>(settings);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -371,6 +373,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               }
                               className="w-28 p-1.5 border border-slate-300 rounded-lg font-mono"
                             />
+                            {displayCurrency !== baseCurrencyCode && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                ≈ {formatAmount(parseFloat(draftValue) || 0)}
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 pr-4 text-slate-500">
                             {rate.updatedAt.slice(0, 16).replace('T', ' ')} · {rate.updatedBy}

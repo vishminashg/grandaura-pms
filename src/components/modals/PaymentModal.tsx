@@ -3,6 +3,7 @@ import { Reservation, Invoice, Payment } from '../../types/hotel.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { recordPayment } from '../../services/pmsService.ts';
 import { X, CreditCard, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
+import { Money } from '../common/Money.tsx';
 
 interface PaymentModalProps {
   reservation: Reservation;
@@ -94,17 +95,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="flex justify-between font-semibold text-slate-900">
               <span>Outstanding Due:</span>
               <span className="font-mono text-sm text-amber-800">
-                ${maxDue.toFixed(2)}
+                <Money amount={maxDue} />
               </span>
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between">
               <span>Total Stay Charges:</span>
-              <span className="font-mono">${reservation.totalAmount.toFixed(2)}</span>
+              <span className="font-mono"><Money amount={reservation.totalAmount} /></span>
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between">
               <span>Previously Paid:</span>
               <span className="font-mono text-emerald-700 font-medium">
-                ${reservation.paidAmount.toFixed(2)}
+                <Money amount={reservation.paidAmount} />
               </span>
             </div>
           </div>

@@ -9,7 +9,8 @@ import {
 import { format, addDays, differenceInDays, startOfDay } from 'date-fns';
 import { X, Calendar, User, Bed, DollarSign, AlertCircle, ShieldAlert } from 'lucide-react';
 import { DateRangeCalendar } from '../common/DateRangeCalendar.tsx';
-import { MultiCurrencyAmount } from '../common/MultiCurrencyAmount.tsx';
+import { Money } from '../common/Money.tsx';
+import { useDisplayCurrency } from '../../context/DisplayCurrencyContext.tsx';
 import { generateConfirmationLetterPdf } from '../../lib/confirmationLetter.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 
@@ -32,6 +33,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { showInfo } = useToast();
+  const { formatAmount } = useDisplayCurrency();
   const staffUser = currentUser!;
   const today = format(new Date(), 'yyyy-MM-dd');
   const defaultDeparture = format(addDays(new Date(), 2), 'yyyy-MM-dd');
@@ -334,7 +336,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                     return (
                       <option key={rt} value={rt}>
                         {rt}
-                        {rate !== undefined ? ` (${settings.currencySymbol}${rate.toFixed(2)}/night)` : ' (rate not set)'}
+                        {rate !== undefined ? ` (${formatAmount(rate)}/night)` : ' (rate not set)'}
                       </option>
                     );
                   })}
@@ -460,28 +462,23 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                 <span className="font-semibold">{numberOfNights} night{numberOfNights > 1 ? 's' : ''}</span>
               </div>
               <div className="flex justify-between">
-                <span>Room Charges ({numberOfNights} × ${customRate.toFixed(2)}):</span>
-                <span className="font-mono">${subtotal.toFixed(2)}</span>
+                <span>Room Charges ({numberOfNights} × {formatAmount(customRate)}):</span>
+                <span className="font-mono"><Money amount={subtotal} /></span>
               </div>
               <div className="flex justify-between">
                 <span>Taxes & Hotel Surcharge ({settings.taxRatePercent}%):</span>
-                <span className="font-mono">${taxAmount.toFixed(2)}</span>
+                <span className="font-mono"><Money amount={taxAmount} /></span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-700">
                   <span>Discount:</span>
-                  <span className="font-mono">-${discountAmount.toFixed(2)}</span>
+                  <span className="font-mono">-{formatAmount(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-slate-900 font-bold pt-1 border-t border-slate-200 text-sm">
                 <span>Total Folio Amount:</span>
-                <span className="font-mono">${totalAmount.toFixed(2)}</span>
+                <span className="font-mono"><Money amount={totalAmount} /></span>
               </div>
-              <MultiCurrencyAmount
-                amountInBase={totalAmount}
-                baseCurrencyCode={settings.baseCurrencyCode}
-                className="justify-end"
-              />
             </div>
           </div>
 
@@ -511,7 +508,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                Prepay Full (${totalAmount.toFixed(2)})
+                Prepay Full ({formatAmount(totalAmount)})
               </button>
               <button
                 type="button"
